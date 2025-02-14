@@ -1,0 +1,662 @@
+<?php
+
+function save_chat($message) {
+
+    // Define the path for the chat file.
+    $chatFile = 'chat.txt';
+
+    // Build the chat data. You can add additional fields as needed.
+    $chatData = array(
+        "source"    => "clinet",           // In this case, the sender is admin.
+        "timestamp" => date("Y-m-d H:i:s"), // Current timestamp.
+        "message"   => $message           // The chat message.
+    );
+
+    // Append the new chat data as a JSON-encoded line to the file.
+    //file_put_contents($chatFile, json_encode($chatData) . "\n", FILE_APPEND | LOCK_EX);
+	file_put_contents($chatFile, json_encode($chatData) . PHP_EOL, FILE_APPEND | LOCK_EX);
+
+}
+
+// Function to log messages to the log file
+function log_message($message) {
+    global $logFile;
+	$logFile = 'logs.txt';
+    $timestamp = date('Y-m-d H:i:s'); // Current timestamp
+  //  file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND | LOCK_EX);
+}
+
+// Function to load chat data
+function load_chat() {
+    global $logFile;
+    $logFile = 'logs.txt';
+
+    // Define chat file path
+    $chatFile = "chat.txt";
+
+    // Check if chat file exists
+    if (!file_exists($chatFile)) {
+        log_message("File not found: $chatFile"); // Log that the file was not found
+        echo json_encode([]); // Return empty array if file is missing
+        exit(); // Stop script execution
+    } else {
+        log_message("File found: $chatFile"); // Log if file is found
+    }
+
+    // Read chat file content
+    $lines = file($chatFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $messages = [];
+
+    // Loop through each line and decode as JSON
+    foreach ($lines as $line) {
+        $data = json_decode($line, true);
+        if ($data !== null) {
+            $messages[] = $data; // Add valid message to the list
+            log_message("Message added: " . json_encode($data)); // Log each added message
+        } else {
+            log_message("Invalid JSON found, skipping line: $line"); // Log invalid JSON
+        }
+    }
+
+    // Return messages as a JSON response
+    header("Content-Type: application/json");
+    echo json_encode($messages); // Return the messages in JSON format
+    log_message("Sending response with " . count($messages) . " messages.");
+    exit(); // Stop script execution
+}
+
+function clear_log_chat()
+{
+         $content = '';
+         $filename = 'chat.txt';
+         $filePath =  $filename;
+         if (file_exists($filePath)) {
+                  file_put_contents($filePath, $content);
+         } else {
+                  $file = fopen($filePath, 'w');
+                  fwrite($file, $content);
+                  fclose($file);
+         }
+}
+function readTextFile($filename)
+{
+         $fileFullPath = $filename;
+
+         // Check if the file exists
+         if (file_exists($fileFullPath)) {
+                  // Read the contents of the file and return them
+                  return file_get_contents($fileFullPath);
+         } else {
+                  return "--";
+         }
+}
+
+$project_file = 'project.txt';
+$project_name = readTextFile($project_file);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+	if (isset($_POST['source'])) {
+    	$source  = $_POST['source'];	
+	}
+
+	// Handle incoming POST requests
+    if (isset($_POST['clear_chat'])) {
+    	clear_log_chat();
+        exit();
+    }
+    
+    if (isset($_POST['chat_message'])) {
+        save_chat($_POST['chat_message']);
+        exit();
+    }
+    
+    if (isset($_POST['load_message'])) {
+    load_chat();
+    exit();
+}
+}
+	
+
+
+?>
+
+	  <style>
+    /* ----------------------------------
+       Base Reset & Typography
+    ------------------------------------- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Roboto', sans-serif; background: #f0f2f5; color: #333; }
+    
+    /* ----------------------------------
+       Chat Button (Fixed Bottom-Right)
+    ------------------------------------- */
+    .chat-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #0084ff;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 12px 20px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      z-index: 1100;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s ease;
+    }
+    .chat-btn:hover { transform: scale(1.05); }
+    .chat-btn i { margin-right: 8px; }
+    
+    /* ----------------------------------
+       Chat Popup Container
+    ------------------------------------- */
+    .chat-popup {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      width: 400px;
+      max-height: 600px;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      z-index: 1100;
+      display: none;
+      animation: slideIn 0.4s ease forwards;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    /* ----------------------------------
+       Chat Header (Draggable)
+    ------------------------------------- */
+    .chat-header {
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: move;
+      user-select: none;
+    }
+    .chat-header .profile-info {
+      display: flex;
+      align-items: center;
+    }
+    .chat-header .profile-info img {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      margin-right: 10px;
+    }
+    .chat-header .profile-info .title {
+      font-size: 18px;
+      color: #fff;
+      font-weight: 500;
+    }
+    .chat-header .actions {
+      display: flex;
+      align-items: center;
+    }
+    .chat-header .actions button {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      margin-left: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .chat-header .actions button:hover { transform: scale(1.2); }
+    
+    /* ----------------------------------
+       Chat Body & Scrollable Area
+    ------------------------------------- */
+    .chat-body {
+      background: #f9f9f9;
+      padding: 16px;
+      height: 400px;
+      overflow-y: auto;
+      position: relative;
+    }
+    .chat-body::-webkit-scrollbar {
+      width: 8px;
+    }
+    .chat-body::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    
+    /* Message Bubbles */
+    .message {
+      margin-bottom: 12px;
+      max-width: 75%;
+      padding: 10px 14px;
+      border-radius: 20px;
+      position: relative;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+    .message.sent {
+      background: #0084ff;
+      color: #fff;
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
+    }
+    .message.received {
+      background: #e4e6eb;
+      color: #333;
+      margin-right: auto;
+      border-bottom-left-radius: 4px;
+    }
+    .timestamp {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.7);
+      position: absolute;
+      bottom: 2px;
+      right: 10px;
+    }
+    
+    /* ----------------------------------
+       Typing Indicator Animation
+    ------------------------------------- */
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      margin: 8px;
+      height: 20px;
+    }
+    .typing-indicator .dot {
+      width: 8px;
+      height: 8px;
+      background: #bbb;
+      border-radius: 50%;
+      margin: 0 2px;
+      opacity: 0.4;
+      animation: blink 1.2s infinite;
+    }
+    .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.4; }
+      40% { opacity: 1; }
+    }
+    
+    /* ----------------------------------
+       Chat Input Area
+    ------------------------------------- */
+    .chat-input {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-top: 1px solid #ddd;
+      background: #fff;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.3s ease;
+    }
+    .chat-input input:focus { border-color: #0084ff; }
+    .chat-input button {
+      background: #0084ff;
+      border: none;
+      color: #fff;
+      padding: 10px 16px;
+      margin-left: 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 15px;
+      transition: background 0.3s ease;
+    }
+    .chat-input button:hover { background: #006fdd; }
+    
+    /* ----------------------------------
+       Optional Dark Mode Styles
+    ------------------------------------- */
+    body.dark-mode { background: #18191a; color: #e4e6eb; }
+    body.dark-mode .chat-popup { background: #242526; color: #e4e6eb; }
+    body.dark-mode .chat-header { background: linear-gradient(90deg, #3a3b3c, #4e4f50); }
+    body.dark-mode .chat-body { background: #3a3b3c; }
+    body.dark-mode .message.sent { background: #0084ff; }
+    body.dark-mode .message.received { background: #4e4f50; }
+    body.dark-mode .chat-input input { background: #242526; border-color: #555; color: #e4e6eb; }
+    body.dark-mode .chat-input button { background: #0084ff; }
+	 /* ----------------------------------------------------
+       Mobile Responsive Styles
+    ----------------------------------------------------- */
+    @media screen and (max-width: 480px) {
+      .chat-popup {
+        width: 100%;
+        height: 100%;
+        bottom: 0;
+        right: 0;
+        border-radius: 0;
+      }
+      .chat-header { padding: 12px; }
+      .chat-body {
+        height: calc(100% - 120px);
+        padding: 10px;
+      }
+      .chat-input { padding: 10px; }
+      .chat-btn {
+        padding: 10px 15px;
+        font-size: 14px;
+        bottom: 10px;
+        right: 10px;
+      }
+    }
+  </style>
+
+        
+
+<!-- Chat Popup -->
+  <div class="chat-popup" id="chatPopup">
+    <!-- Chat Header -->
+    <div class="chat-header" id="chatHeader">
+      <div class="profile-info">
+        <img src="https://imgs.search.brave.com/LzjFE3AcXyUhgABD6IxVV0xtKhaUtkTymrJpMqUJ0ZQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9jZG4y/Lmljb25maW5kZXIu/Y29tL2RhdGEvaWNv/bnMvZnJlcXVlbnRs/eS1hc2tlZC1xdWVz/dGlvbnMtZmlsbG91/dGxpbmUvNjQvY3Vz/dG9tZXJfc2Vydmlj/ZV9BZ2VudC1oZWFk/cGhvbmVzLXN1cHBv/cnQtY29tbXVuaWNh/dGlvbnMtdXNlci0x/MjgucG5n" alt="Profile Photo">
+        <div class="title">Support</div>
+      </div>
+      <div class="actions">
+        <button onclick="toggleMinimize()" id="minimizeBtn" title="Minimize">
+          <i class="bi bi-dash"></i>
+        </button>
+        <button onclick="closeChat()" title="Close">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    </div>
+    <!-- Chat Body -->
+    <div class="chat-body" id="chatBody">
+      <!-- Initial Received Message -->
+      <div class="message received">
+        Hello, Now you can chat with user
+        <div class="timestamp">10:00 AM</div>
+      </div>
+    </div>
+    <!-- Typing Indicator -->
+    <div class="typing-indicator" id="typingIndicator" style="display: none;">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <!-- Chat Input -->
+    <div class="chat-input">
+  <input type="text" id="chatInput" placeholder="Type your message..." onkeypress="if(event.key==='Enter') sendMessageme()">
+  <button onclick="sendMessageme()">Send</button>
+  
+</div>
+  </div>
+ <!-- Bootstrap Bundle with Popper (Bootstrap 5) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+
+// Set sender as "admin"
+var sender = "client";
+// Record the time when the admin opens the chat (optional)
+var adminChatStartTime = null;
+
+  function clearChat() {
+
+    if (confirm("Are you sure you want to clear the chat?")) {
+      document.getElementById('chatBody').innerHTML = "";
+	  document.getElementById('typingIndicator').style.display = 'none';
+	let newRow = { 
+	   clear_chat: "true", 
+	   source: "client"
+	   };
+       postNewRow(newRow);
+      // Optionally: Make an AJAX call here to clear chat history on the server if desired.
+    }
+  }
+
+// Function to open chat and set the admin start time
+function openChat() {
+    document.getElementById('chatPopup').style.display = 'block';
+    document.getElementById('chatInput').focus();
+	
+    if (!adminChatStartTime) {
+        adminChatStartTime = new Date();
+    }
+}
+
+function loadChat() {
+
+    fetch('', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            load_message: "1" // Just a flag to trigger loading
+        })
+    })
+    .then(response => response.text()) // Read response as text first
+    .then(text => {
+        console.log("Server Response Text:", text); // Debug API response
+
+        // Try to parse the response as JSON
+        try {
+            const messages = JSON.parse(text);
+            console.log("Parsed Messages:", messages); // Log parsed messages
+
+            var chatBody = document.getElementById('chatBody');
+            chatBody.innerHTML = ""; // Clear previous messages
+
+            messages.forEach(msg => {
+    var msgDiv = document.createElement('div');
+
+	
+	
+
+    // Check if the message is from the client (user) or admin
+    if (msg.source === "admin") {
+      const typingIndicator = document.getElementById('typingIndicator');
+      typingIndicator.style.display = 'flex';
+		msgDiv.classList.add('message', 'received');
+        msgDiv.innerHTML = `
+            ${msg.message}
+            <span class="timestamp">${msg.timestamp} ✔️</span>
+        `;
+    } else {
+        
+		msgDiv.classList.add('message', 'sent');
+        msgDiv.innerHTML = `
+            <div class="admin-profile">
+                <div class="admin-msg">
+                    ${msg.message}
+                    <span class="timestamp">${msg.timestamp} ✔️</span>
+                </div>
+            </div>
+        `;
+		
+    }
+
+    chatBody.appendChild(msgDiv);
+});
+
+
+
+            chatBody.scrollTop = chatBody.scrollHeight; // Auto-scroll to latest message
+			
+        } catch (err) {
+            console.error("Error parsing response:", err);
+        }
+    })
+    .catch(err => {
+        console.error("Error loading messages:", err);
+    });
+}
+
+        // Poll for new messages every 2 seconds
+        setInterval(loadChat, 5000);
+
+        // Load messages immediately on page load
+        loadChat();
+
+</script>
+
+  <script>
+    /* ---------------------------
+       Open, Close & Minimize
+    ------------------------------ */
+    let isMinimized = false;
+    const chatPopup = document.getElementById('chatPopup');
+    const chatBody = document.getElementById('chatBody');
+    
+   
+    
+    function closeChat() {
+      chatPopup.style.display = 'none';
+    }
+    
+	function postNewRow(dataObj) {
+                // Create a FormData instance and append each key/value pair
+                const formData = new FormData();
+                for (let key in dataObj) {
+                    if (dataObj.hasOwnProperty(key)) {
+                        formData.append(key, dataObj[key]);
+                    }
+                }
+            
+                // Send POST request to the same page (current URL)
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text()) // or response.json() if you return JSON
+                .then(result => {
+                    console.log("Server Response:", result);
+                })
+                .catch(error => {
+                    console.error("Error sending data:", error);
+                });
+            }
+            
+			
+    function toggleMinimize() {
+      isMinimized = !isMinimized;
+      if(isMinimized) {
+        chatBody.style.display = 'none';
+        document.querySelector('.chat-input').style.display = 'none';
+        document.getElementById('typingIndicator').style.display = 'none';
+        document.getElementById('minimizeBtn').innerHTML = '<i class="bi bi-plus"></i>';
+      } else {
+        chatBody.style.display = 'block';
+        document.querySelector('.chat-input').style.display = 'flex';
+        document.getElementById('minimizeBtn').innerHTML = '<i class="bi bi-dash"></i>';
+      }
+    }
+    
+    /* ---------------------------
+       Sending Messages & Simulation
+    ------------------------------ */
+    function sendMessageme() {
+      const chatInput = document.getElementById('chatInput');
+      const text = chatInput.value.trim();
+      if (!text) return;
+      
+      // Create and append sent message
+      const sentMessage = document.createElement('div');
+      sentMessage.classList.add('message', 'sent');
+      sentMessage.textContent = text;
+      
+      // Append timestamp to the message
+      const timeElem = document.createElement('div');
+      timeElem.classList.add('timestamp');
+      timeElem.textContent = formatTime(new Date());
+      sentMessage.appendChild(timeElem);
+      
+      chatBody.appendChild(sentMessage);
+      chatInput.value = '';
+      scrollChatToBottom();
+       let newRow = { 
+	   chat: "true", 
+	   source: "client",
+	   chat_message: text
+	   };
+       postNewRow(newRow);
+      // Simulate a response after a delay
+     // simulateResponse();
+    }
+
+    
+    function scrollChatToBottom() {
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+    
+    function formatTime(date) {
+      let hours = date.getHours();
+      let minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      minutes = minutes < 10 ? '0' + minutes : minutes;
+      return hours + ':' + minutes + ' ' + ampm;
+    }
+    
+    /* ---------------------------
+       Draggable Chat Popup
+    ------------------------------ */
+    (function() {
+      const chatHeader = document.getElementById('chatHeader');
+      let isDragging = false, offsetX = 0, offsetY = 0;
+      
+      chatHeader.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        offsetX = e.clientX - chatPopup.offsetLeft;
+        offsetY = e.clientY - chatPopup.offsetTop;
+        chatPopup.style.transition = 'none';
+      });
+      
+      document.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+          chatPopup.style.left = (e.clientX - offsetX) + 'px';
+          chatPopup.style.top = (e.clientY - offsetY) + 'px';
+          chatPopup.style.bottom = 'auto';
+          chatPopup.style.right = 'auto';
+        }
+      });
+      
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+        chatPopup.style.transition = 'all 0.3s ease';
+      });
+    })();
+	
+  </script>
+  
+<script>
+// Function to check the log file and toggle chat visibility.
+function checkLogAndToggleChat() {
+  // Append a random query parameter to avoid cached responses.
+  fetch('chat.txt?rand=' + Math.random())
+    .then(response => response.text())
+    .then(text => {
+      // Debug: log the content of log.txt
+      console.log("Log file content:", text);
+
+      // If log.txt is empty (after trimming whitespace), close chat.
+      if (text.trim() === "") {
+        closeChat();
+      } else {
+        openChat();
+      }
+    })
+    .catch(err => console.error("Error reading log.txt:", err));
+}
+
+// Optionally, you can call this function every 5 seconds.
+setInterval(checkLogAndToggleChat, 5000);
+
+
+</script>
+
